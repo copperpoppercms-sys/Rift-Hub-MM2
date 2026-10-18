@@ -525,7 +525,7 @@ function MonoUI.new(cfg)
             if not (typeof(isfile) == "function" and isfile(path)) then
                 local ok, data = pcall(function() return game:HttpGet(cfg.LogoUrl, true) end)
 
-                if ok and type(data) == "string" and data:sub(2, 4) == "PNG" then
+                if ok and type(data) == "string" and (data:sub(2, 4) == "PNG" or data:sub(1,3) == string.char(255,216,255)) then
                     pcall(writefile, path, data)
                 end
             end
@@ -549,6 +549,8 @@ function MonoUI.new(cfg)
         local h = cfg.LogoHeight or 24
         brand = new("ImageLabel", {
             Image = logoId, BackgroundTransparency = 1, ScaleType = Enum.ScaleType.Fit,
+            ImageRectOffset = cfg.LogoMarkRect and Vector2.new(cfg.LogoMarkRect[1],cfg.LogoMarkRect[2]) or Vector2.new(),
+            ImageRectSize = cfg.LogoMarkRect and Vector2.new(cfg.LogoMarkRect[3],cfg.LogoMarkRect[4]) or Vector2.new(),
             Size = UDim2.fromOffset(math.floor(h * (cfg.LogoAspect or 3) + 0.5), h),
             LayoutOrder = 1, ZIndex = 4, Parent = brandRow,
         })
@@ -558,6 +560,10 @@ function MonoUI.new(cfg)
             Size = UDim2.new(0, 0, 1, 0), AutomaticSize = Enum.AutomaticSize.X,
             LayoutOrder = 1, ZIndex = 4, Parent = brandRow,
         })
+    end
+    if logoId then
+        text({Text=cfg.Title or "Rift Hub",Font=FONT_BOLD,TextSize=18,TextColor3=T.text,
+            Size=UDim2.new(0,0,1,0),AutomaticSize=Enum.AutomaticSize.X,LayoutOrder=2,ZIndex=4,Parent=brandRow})
     end
     if not logoId and cfg.Version then
         local badge = panel({
@@ -2142,7 +2148,7 @@ function MonoUI:_buildBadge()
         })
     end
     if markRect then
-        crop(markRect, 0.5, 32, 24)
+        crop(markRect, 0.5, 32, 33)
     elseif hasLogo then
         parts[1] = new("ImageLabel", {
             Image = self.logoId, BackgroundTransparency = 1,
@@ -2152,7 +2158,7 @@ function MonoUI:_buildBadge()
         })
     else
         parts[1] = text({
-            Text = "M", Font = FONT_BOLD, TextSize = 20, TextColor3 = T.text,
+            Text = "R", Font = FONT_BOLD, TextSize = 20, TextColor3 = T.text,
             Size = UDim2.fromScale(1, 1), TextXAlignment = Enum.TextXAlignment.Center,
             ZIndex = 31, Parent = self.badge,
         })
@@ -6421,6 +6427,9 @@ end
 
 local Menu = MonoUI.new({
     Title = "Rift Hub", Version = "MM2", Width = 680, Height = 430,
+    LogoUrl = "https://raw.githubusercontent.com/copperpoppercms-sys/Rift-Hub-MM2/main/assets/rift_logo.jpg",
+    LogoCache = "RiftHub/rift-logo-92145dc6000c.jpg", LogoHeight = 30, LogoAspect = 1,
+    LogoMarkRect = {380,295,510,525},
 })
 Window = Menu
 

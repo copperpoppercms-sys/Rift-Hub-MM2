@@ -29,3 +29,7 @@ Alternatively set `LUAU_COMPILE_BIN` to its executable path. These checks compil
 ## Execute snippet
 
 `execute.lua` contains the copy/paste execution snippet for this repository.
+
+## Rift branding
+
+The header uses the user-supplied Rift Hub R emblem from `assets/rift_logo.jpg`. Existing minimized controls use the same emblem. The original JPEG is preserved unchanged; logo cache names include its content hash. If custom images are unavailable, text branding remains usable.
