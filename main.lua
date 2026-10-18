@@ -547,12 +547,13 @@ function MonoUI.new(cfg)
     local brand
     if logoId then
         local h = cfg.LogoHeight or 24
+        local logoViewport=new("Frame",{Size=UDim2.fromOffset(h,h),BackgroundTransparency=1,ClipsDescendants=true,LayoutOrder=1,ZIndex=4,Parent=brandRow})
+        local rect=cfg.LogoMarkRect or {374,298,520,520}
+        local source=cfg.LogoSourceSize or 1254
         brand = new("ImageLabel", {
-            Image = logoId, BackgroundTransparency = 1, ScaleType = Enum.ScaleType.Fit,
-            ImageRectOffset = cfg.LogoMarkRect and Vector2.new(cfg.LogoMarkRect[1],cfg.LogoMarkRect[2]) or Vector2.new(),
-            ImageRectSize = cfg.LogoMarkRect and Vector2.new(cfg.LogoMarkRect[3],cfg.LogoMarkRect[4]) or Vector2.new(),
-            Size = UDim2.fromOffset(math.floor(h * (cfg.LogoAspect or 3) + 0.5), h),
-            LayoutOrder = 1, ZIndex = 4, Parent = brandRow,
+            Name="RiftLogo",Image=logoId,BackgroundTransparency=1,ScaleType=Enum.ScaleType.Stretch,
+            Position=UDim2.fromScale(-rect[1]/rect[3],-rect[2]/rect[4]),
+            Size=UDim2.fromScale(source/rect[3],source/rect[4]),ZIndex=4,Parent=logoViewport,
         })
     else
         brand = text({
@@ -1037,6 +1038,7 @@ function MonoUI:SelectTab(tab)
         if self.content then self.content.Visible = mods end
         self:_setDivider(mods and (self._sideShown ~= false) and self.layout
             and self.layout.side ~= "Bottom", false)
+        if self.pageButtons then self.pageButtons.Visible = tab.name == "Buttons" end
         if self.pagePlayers  then self.pagePlayers.Visible  = tab.name == "Players" end
         if self.pageServer   then self.pageServer.Visible   = tab.name == "Server" end
         if self.pageConfigs then self.pageConfigs.Visible = tab.name == "Configs" end
@@ -1054,7 +1056,8 @@ function MonoUI:SelectTab(tab)
     task.delay(current and 0.10 or 0, function()
         if self.activeTab ~= tab then return end
         show(true)
-        local page = (tab.name == "Players" and self.pagePlayers)
+        local page = (tab.name == "Buttons" and self.pageButtons)
+            or (tab.name == "Players" and self.pagePlayers)
             or (tab.name == "Server" and self.pageServer)
             or (tab.name == "Configs" and self.pageConfigs)
             or (tab.name == "Settings" and self.pageSettings)
@@ -1062,6 +1065,7 @@ function MonoUI:SelectTab(tab)
             or (tab.name == "Credits" and self.pageCredits)
             or self.content
         self._activePage = page
+        if tab.name == "Buttons" and self._refreshButtons then self._refreshButtons() end
         if tab.name == "Configs" and self._refreshConfigs then self._refreshConfigs() end
         if tab.name == "Server" and self._refreshServer then self._refreshServer() end
         if tab.name == "Settings" and self._refreshSettings then self._refreshSettings() end
@@ -2138,17 +2142,15 @@ function MonoUI:_buildBadge()
 
     local parts = {}
     local function crop(rect, posY, w, h)
-        parts[#parts + 1] = new("ImageLabel", {
-            Image = self.logoId, BackgroundTransparency = 1, ScaleType = Enum.ScaleType.Fit,
-            ImageRectOffset = Vector2.new(rect[1], rect[2]),
-            ImageRectSize = Vector2.new(rect[3], rect[4]),
-            ImageColor3 = T.text, AnchorPoint = Vector2.new(0.5, 0.5),
-            Position = UDim2.fromScale(0.5, posY), Size = UDim2.fromOffset(w, h),
-            ZIndex = 31, Parent = self.badge,
-        })
+        local viewport=new("Frame",{BackgroundTransparency=1,ClipsDescendants=true,AnchorPoint=Vector2.new(0.5,0.5),
+            Position=UDim2.fromScale(0.5,posY),Size=UDim2.fromOffset(w,h),ZIndex=31,Parent=self.badge})
+        local source=cfg.LogoSourceSize or 1254
+        parts[#parts+1]=new("ImageLabel",{Image=self.logoId,BackgroundTransparency=1,ScaleType=Enum.ScaleType.Stretch,
+            Position=UDim2.fromScale(-rect[1]/rect[3],-rect[2]/rect[4]),Size=UDim2.fromScale(source/rect[3],source/rect[4]),
+            ImageColor3=T.text,ZIndex=31,Parent=viewport})
     end
     if markRect then
-        crop(markRect, 0.5, 32, 33)
+        crop(markRect, 0.5, 32, 32)
     elseif hasLogo then
         parts[1] = new("ImageLabel", {
             Image = self.logoId, BackgroundTransparency = 1,
@@ -3444,7 +3446,8 @@ function MonoUI:GetConfig()
         end
     end
     return { modules = mods, settings = sets,
-             friends = self.friends or {}, targets = self.targets or {} }
+             friends = self.friends or {}, targets = self.targets or {},
+             buttons = self.floatingButtons and self.floatingButtons.Serialize() or nil }
 end
 
 function MonoUI:LoadConfig(data)
@@ -3466,6 +3469,7 @@ function MonoUI:LoadConfig(data)
             if not m.action and m.state ~= d.state then m:Toggle(d.state) end
         end
     end
+    if self.floatingButtons then self.floatingButtons.Restore(data.buttons) end
     self.friends = data.friends or {}
     self.targets = data.targets or {}
     if self._rebuildPlayers then self._rebuildPlayers() end
@@ -3546,7 +3550,7 @@ function MonoUI:_buildCredits()
         ZIndex = 6, Parent = head,
     })
     text({
-        Text = "A Murder Mystery 2 script by fleece",
+        Text = "Rift Hub by N0VA_0100 · Original script by fleece",
         TextSize = 12, Font = FONT_REG, TextColor3 = T.descText,
         Position = UDim2.fromOffset(16, 38), Size = UDim2.new(1, -32, 0, 16),
         ZIndex = 6, Parent = head,
@@ -3590,7 +3594,8 @@ function MonoUI:_buildCredits()
         return c
     end
 
-    linkRow("Made by", "fleece", "user", nil)
+    linkRow("Rift Hub owner", "N0VA_0100", "user", nil)
+    linkRow("Original script & UI", "fleece", "file-code", nil)
     linkRow("Other Scripts", "robloxscripts.com/user/Fleece", "file-code", "https://robloxscripts.com/user/Fleece")
     linkRow("GitHub", "github.com/fleecewtf", "hammer", "https://github.com/fleecewtf")
     linkRow("Discord", "@zquz", "message-circle", "@zquz")
@@ -3719,6 +3724,199 @@ function MonoUI:_buildConfigs()
     refresh()
 end
 
+local MakeFloatingButtons=(function()
+-- Floating shortcuts use the existing module API so menu and shortcut states stay synchronized.
+return function(options)
+    local Input=game:GetService("UserInputService")
+    local Run=game:GetService("RunService")
+    local M={Locked=false,Visible=true,Entries={}}
+    local connections,drag={},nil
+    local dead,suspended=false,false
+    local function connect(event,fn) local c=event:Connect(fn);table.insert(connections,c);return c end
+    local function make(class,props,parent)
+        local item=Instance.new(class);for k,v in pairs(props) do item[k]=v end;item.Parent=parent;return item
+    end
+    local function changed() if not suspended and options.Changed then options.Changed() end end
+    local function dimensions()
+        local view=workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(800,600)
+        return math.max(1,view.X),math.max(1,view.Y)
+    end
+    local function finite(n) return type(n)=="number" and n==n and math.abs(n)<math.huge end
+    local function position(entry)
+        local w,h=dimensions();local width=math.min(146,math.max(72,w-16));local height=44
+        entry.Button.Size=UDim2.fromOffset(width,height)
+        entry.Button.Position=UDim2.fromOffset(8+entry.X*math.max(0,w-width-16),8+entry.Y*math.max(0,h-height-16))
+    end
+    local function defaultPosition(index)
+        local _,h=dimensions();local rows=math.max(1,math.floor((h-100)/52))
+        return math.max(0,1-math.floor((index-1)/rows)*0.3),math.clamp(0.12+((index-1)%rows)*52/math.max(1,h-60),0,1)
+    end
+    function M.Sync()
+        if dead then return end
+        for module,entry in pairs(M.Entries) do
+            local on=not module.action and module:Get()
+            entry.State.Text=module.action and "TAP" or on and "ON" or "OFF"
+            entry.State.TextColor3=on and Color3.fromRGB(136,230,143) or Color3.fromRGB(154,161,171)
+            entry.Button.BackgroundColor3=on and Color3.fromRGB(33,54,39) or Color3.fromRGB(24,27,33)
+            entry.Button.Visible=M.Visible
+            position(entry)
+        end
+    end
+    function M.IsPinned(module) return M.Entries[module]~=nil end
+    function M.Pin(module,saved)
+        if dead or M.Entries[module] then return false end
+        local found=false
+        for _,candidate in ipairs(options.Modules()) do if candidate==module then found=true;break end end
+        if not found then return false end
+        local count=0;for _ in pairs(M.Entries) do count+=1 end
+        local x,y=defaultPosition(count+1)
+        if type(saved)=="table" and finite(saved.X) and finite(saved.Y) then x,y=math.clamp(saved.X,0,1),math.clamp(saved.Y,0,1) end
+        local b=make("TextButton",{Name="RiftShortcut_"..module.name,Text="",AutoButtonColor=false,BorderSizePixel=0,
+            BackgroundColor3=Color3.fromRGB(24,27,33),ZIndex=40,Active=true},options.Gui)
+        make("UICorner",{CornerRadius=UDim.new(0,11)},b)
+        make("UIStroke",{Color=Color3.fromRGB(67,74,82),Transparency=0.15,Thickness=1},b)
+        make("TextLabel",{Position=UDim2.fromOffset(10,3),Size=UDim2.new(1,-46,1,-6),BackgroundTransparency=1,Text=module.display or module.name,
+            TextWrapped=true,Font=Enum.Font.GothamBold,TextSize=11,TextXAlignment=Enum.TextXAlignment.Left,TextColor3=Color3.fromRGB(235,237,241),ZIndex=41},b)
+        local state=make("TextLabel",{Position=UDim2.new(1,-38,0,0),Size=UDim2.new(0,30,1,0),BackgroundTransparency=1,
+            Font=Enum.Font.GothamBold,TextSize=9,ZIndex=41},b)
+        local entry={Button=b,State=state,X=x,Y=y,Connections={},SuppressUntil=0}
+        M.Entries[module]=entry
+        local function own(event,fn) local c=event:Connect(fn);table.insert(entry.Connections,c) end
+        own(b.InputBegan,function(input)
+            if M.Locked or not M.Visible or Input:GetFocusedTextBox() then return end
+            if input.UserInputType==Enum.UserInputType.Touch or input.UserInputType==Enum.UserInputType.MouseButton1 then
+                drag={Input=input,Entry=entry,Start=input.Position,Origin=b.Position,Moved=false}
+            end
+        end)
+        own(b.Activated,function()
+            if dead or not M.Visible or Input:GetFocusedTextBox() then return end
+            if drag and drag.Entry==entry and drag.Moved or os.clock()<entry.SuppressUntil then return end
+            local ok,err=pcall(function()
+                if module.action then if module.callback then task.spawn(module.callback,true) end
+                else module:Toggle() end
+            end)
+            if not ok and options.Error then options.Error(tostring(err)) end
+            M.Sync()
+        end)
+        M.Sync();changed();return true
+    end
+    function M.Unpin(module)
+        local entry=M.Entries[module];if not entry then return end
+        if drag and drag.Entry==entry then drag=nil end
+        for _,c in ipairs(entry.Connections) do c:Disconnect() end
+        entry.Button:Destroy();M.Entries[module]=nil;changed()
+    end
+    function M.Clear()
+        local modules={};for module in pairs(M.Entries) do table.insert(modules,module) end
+        for _,module in ipairs(modules) do M.Unpin(module) end
+    end
+    function M.SetLocked(on)
+        M.Locked=on==true
+        if drag then drag.Entry.SuppressUntil=os.clock()+0.25;drag=nil end
+        changed()
+    end
+    function M.SetVisible(on) M.Visible=on==true;drag=nil;M.Sync();changed() end
+    function M.ResetPositions()
+        local index=0
+        for _,module in ipairs(options.Modules()) do
+            local entry=M.Entries[module]
+            if entry then index+=1;entry.X,entry.Y=defaultPosition(index);position(entry) end
+        end
+        drag=nil;changed()
+    end
+    function M.Serialize()
+        local pins={}
+        for module,entry in pairs(M.Entries) do pins[module.name]={X=entry.X,Y=entry.Y} end
+        return {Pins=pins,Locked=M.Locked,Visible=M.Visible}
+    end
+    function M.Restore(data)
+        if type(data)~="table" then return end
+        suspended=true;M.Clear();M.Locked=data.Locked==true;M.Visible=data.Visible~=false
+        if type(data.Pins)=="table" then
+            for _,module in ipairs(options.Modules()) do
+                if type(data.Pins[module.name])=="table" then M.Pin(module,data.Pins[module.name]) end
+            end
+        end
+        suspended=false;M.Sync()
+    end
+    connect(Input.InputChanged,function(input)
+        if not drag or M.Locked then return end
+        if input~=drag.Input and not (input.UserInputType==Enum.UserInputType.MouseMovement and drag.Input.UserInputType==Enum.UserInputType.MouseButton1) then return end
+        local delta=input.Position-drag.Start;if delta.Magnitude>7 then drag.Moved=true end
+        if not drag.Moved then return end
+        local entry=drag.Entry;local w,h=dimensions();local size=entry.Button.Size
+        local x=drag.Origin.X.Offset+delta.X;local y=drag.Origin.Y.Offset+delta.Y
+        entry.X=math.clamp((x-8)/math.max(1,w-size.X.Offset-16),0,1)
+        entry.Y=math.clamp((y-8)/math.max(1,h-size.Y.Offset-16),0,1);position(entry)
+    end)
+    connect(Input.InputEnded,function(input)
+        if drag and (input==drag.Input or input.UserInputType==Enum.UserInputType.MouseButton1 and drag.Input.UserInputType==Enum.UserInputType.MouseButton1) then
+            if drag.Moved then drag.Entry.SuppressUntil=os.clock()+0.25;changed() end
+            drag=nil
+        end
+    end)
+    connect(Input.WindowFocusReleased,function() if drag then drag.Entry.SuppressUntil=os.clock()+0.25;drag=nil end end)
+    local age=0
+    connect(Run.Heartbeat,function(dt) age+=dt;if age>=0.2 then age=0;M.Sync() end end)
+    function M.Destroy()
+        if dead then return end;dead=true;drag=nil
+        for _,c in ipairs(connections) do c:Disconnect() end;table.clear(connections)
+        for _,entry in pairs(M.Entries) do
+            for _,c in ipairs(entry.Connections) do c:Disconnect() end
+            entry.Button:Destroy()
+        end
+        table.clear(M.Entries)
+    end
+    connect(options.Gui.Destroying,M.Destroy)
+    return M
+end
+end)()
+
+function MonoUI:_buildButtons()
+    self.floatingButtons=MakeFloatingButtons({Gui=self.gui,Modules=function() return self.allModules end,
+        Changed=function() if self.onStateChanged then self.onStateChanged() end end,
+        Error=function(err) self:Notify({Title="Shortcut",Content=err,Duration=4}) end})
+    local page=self:_page();self.pageButtons=page
+    text({Text="Buttons",Font=FONT_BOLD,TextSize=16,TextColor3=T.text,Position=UDim2.fromOffset(2,4),Size=UDim2.new(1,-4,0,20),ZIndex=4,Parent=page})
+    text({Text="Add floating shortcuts. Drag to move; tap to toggle. Lock positions in Settings.",TextWrapped=true,Font=FONT_REG,TextSize=11,
+        TextColor3=T.sub,Position=UDim2.fromOffset(2,30),Size=UDim2.new(1,-4,0,36),ZIndex=4,Parent=page})
+    local list=new("ScrollingFrame",{Position=UDim2.fromOffset(0,76),Size=UDim2.new(1,0,1,-76),BackgroundTransparency=1,BorderSizePixel=0,
+        ScrollBarThickness=3,CanvasSize=UDim2.new(),AutomaticCanvasSize=Enum.AutomaticSize.Y,ZIndex=4,Parent=page})
+    new("UIListLayout",{SortOrder=Enum.SortOrder.LayoutOrder,Padding=UDim.new(0,8)},nil).Parent=list
+    local lastCategory,order=nil,0
+    self._refreshButtons=function()
+        if self._buttonsBuilt then
+            for _,module in ipairs(self.allModules) do if module._pinLabel then module._pinLabel.Text=self.floatingButtons.IsPinned(module) and "Remove" or "Add" end end
+            return
+        end
+        if #self.allModules==0 then return end
+        self._buttonsBuilt=true
+        for _,module in ipairs(self.allModules) do
+            local category=module.category and module.category.name or "Features"
+            if lastCategory~=category then
+                lastCategory=category;order+=1
+                text({Text=category,TextSize=12,Font=FONT_BOLD,TextColor3=T.sub,Size=UDim2.new(1,0,0,24),LayoutOrder=order,ZIndex=5,Parent=list})
+            end
+            order+=1
+            local row=panel({Size=UDim2.new(1,0,0,54),BackgroundColor3=T.panel,LayoutOrder=order,ZIndex=5,Parent=list},8)
+            text({Text=module.display or module.name,Font=FONT_BOLD,TextSize=12,TextColor3=T.text,Position=UDim2.fromOffset(12,7),Size=UDim2.new(1,-100,0,20),ZIndex=6,Parent=row})
+            text({Text=module.action and "Tap once to run" or "Tap to switch ON / OFF",TextSize=10,TextColor3=T.sub,Position=UDim2.fromOffset(12,28),Size=UDim2.new(1,-100,0,16),ZIndex=6,Parent=row})
+            local add=new("TextButton",{Position=UDim2.new(1,-82,0,12),Size=UDim2.fromOffset(70,30),Text="Add",Font=FONT_BOLD,TextSize=11,
+                TextColor3=T.text,BackgroundColor3=T.inset,BorderSizePixel=0,AutoButtonColor=false,ZIndex=6,Parent=row})
+            new("UICorner",{CornerRadius=UDim.new(0,7),Parent=add});module._pinLabel=add
+            add.Activated:Connect(function()
+                if self.floatingButtons.IsPinned(module) then self.floatingButtons.Unpin(module) else self.floatingButtons.Pin(module) end
+                add.Text=self.floatingButtons.IsPinned(module) and "Remove" or "Add"
+            end)
+        end
+    end
+    table.insert(self.uiSettings,{Type="Section",Text="FLOATING BUTTONS"})
+    table.insert(self.uiSettings,{Type="Toggle",Title="Show Floating Buttons",Default=true,Callback=function(v) self.floatingButtons.SetVisible(v) end})
+    table.insert(self.uiSettings,{Type="Toggle",Title="Lock Button Positions",Default=false,Callback=function(v) self.floatingButtons.SetLocked(v) end})
+    table.insert(self.uiSettings,{Type="Button",Title="Reset Button Positions",Callback=function() self.floatingButtons.ResetPositions() end})
+    table.insert(self.uiSettings,{Type="Button",Title="Remove All Floating Buttons",Callback=function() self.floatingButtons.Clear();self._refreshButtons() end})
+end
+
 function MonoUI:_buildSettings()
     local page = self:_page()
     self.pageSettings = page
@@ -3743,6 +3941,7 @@ function MonoUI:_buildSettings()
 end
 
 function MonoUI:_buildPages()
+    self:_buildButtons()
     self:_buildSettings()
     self:_buildPlayers()
     self:_buildServer()
@@ -4353,6 +4552,7 @@ local function snapShot(target)
     if not (myHrp and tHrp and Mono.canAct()) then return false end
     snapping=true
 
+    local shotCharacter=LocalPlayer.Character
     local home=myHrp.CFrame
     local homeVel=myHrp.AssemblyLinearVelocity
     local myHum=LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
@@ -4422,13 +4622,13 @@ local function snapShot(target)
     RunService.Heartbeat:Wait()
     Mono.markSelfTP()
     local h3=getHRP(LocalPlayer.Character)
-    if h3 then
+    if h3==myHrp and LocalPlayer.Character==shotCharacter and not Mono.teleporting() then
         h3.CFrame=home
         h3.AssemblyLinearVelocity=homeVel
         h3.AssemblyAngularVelocity=Vector3.zero
     end
     local hum3=LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-    if hum3 then
+    if hum3==myHum and LocalPlayer.Character==shotCharacter then
         if homeState and homeState~=Enum.HumanoidStateType.Dead then
             pcall(function() hum3:ChangeState(homeState) end)
         else
@@ -4439,6 +4639,59 @@ local function snapShot(target)
     snapping=false
     return fired
 end
+local MakeQuickShot=(function()
+-- Short shot request: one replication step before firing, one before returning.
+-- A sent request is not proof of a hit; the game server owns cooldown and hit validation.
+return function(ctx)
+    return function(target)
+        if ctx.Busy() then return false,"Gun busy or cooling down" end
+        if not ctx.CanShoot() or not target or target~=ctx.Murderer() then return false,"Requires a gun and a living murderer" end
+        local character=ctx.Character();local root=ctx.Root(character)
+        local targetCharacter=target.Character;local targetRoot=ctx.Root(targetCharacter)
+        local gun=ctx.Gun();local shoot=gun and gun:FindFirstChild("Shoot")
+        if not root or not targetRoot or not shoot or not shoot:IsA("RemoteEvent") then return false,"Gun or target unavailable" end
+        local home,velocity,spin=root.CFrame,root.AssemblyLinearVelocity,root.AssemblyAngularVelocity
+        ctx.SetBusy(true)
+        local sent=false
+        local ok,err=pcall(function()
+            ctx.Equip(gun)
+            if gun.Parent~=character or not ctx.CanShoot() then return end
+            local aim=ctx.Aim(targetCharacter);if not aim then return end
+            local offset=home.Position-aim;offset=Vector3.new(offset.X,0,offset.Z)
+            offset=offset.Magnitude>0.1 and offset.Unit or Vector3.new(0,0,1)
+            ctx.MarkTeleport();root.CFrame=CFrame.lookAt(aim+offset*5,aim)
+            root.AssemblyLinearVelocity=Vector3.new();root.AssemblyAngularVelocity=Vector3.new()
+            ctx.WaitFrame()
+            if ctx.Character()~=character or target.Character~=targetCharacter or ctx.Root(character)~=root
+                or target~=ctx.Murderer() or not ctx.CanShoot() or ctx.Transitioning() then return end
+            aim=ctx.Aim(targetCharacter);if not aim then return end
+            local origin=ctx.Origin();if not origin then return end
+            local lead=math.clamp(ctx.Lead(),0,0.15)
+            shoot:FireServer(origin,CFrame.new(aim+targetRoot.AssemblyLinearVelocity*lead))
+            sent=true;ctx.Fired();ctx.WaitFrame()
+        end)
+        -- Never move a replacement character or undo a round-transition teleport.
+        pcall(function()
+            if ctx.Character()==character and ctx.Root(character)==root and root.Parent and not ctx.Transitioning() then
+                ctx.MarkTeleport();root.CFrame=home
+                root.AssemblyLinearVelocity=velocity;root.AssemblyAngularVelocity=spin
+            end
+        end)
+        ctx.SetBusy(false)
+        if not ok then return false,tostring(err) end
+        return sent,sent and "Shot requested" or "Shot cancelled"
+    end
+end
+end)()
+Mono.quickShot=MakeQuickShot({
+    Busy=function() return snapping or Mono.gunBusy() end,SetBusy=function(on) snapping=on end,
+    CanShoot=function() return not isDead() and Mono.canAct() and isGunRole(myRole()) end,
+    Character=function() return LocalPlayer.Character end,Root=getHRP,Murderer=findMurderer,
+    Gun=function() return findWeapon("Gun") end,Equip=equip,Aim=Mono.aimPoint,Origin=Mono.gunOrigin,
+    MarkTeleport=Mono.markSelfTP,Transitioning=Mono.teleporting,
+    WaitFrame=function() RunService.Heartbeat:Wait() end,Lead=function() return Mono.shotLag or 0.06 end,
+    Fired=function() Mono.snapAt=os.clock() end,
+})
 local function enemies()
     local role=myRole(); local list={}
     if isGunRole(role) then local m=findMurderer(); if m and alive(m) then table.insert(list,m) end
@@ -4598,6 +4851,12 @@ Mono.hookOk=pcall(function()
         if not Unloaded and not checkcaller() and getnamecallmethod()=="FireServer" then
             local nm=self.Name
             if nm=="Shoot" or nm=="KnifeThrown" then
+                if nm=="Shoot" and flags.gunWalls and isGunRole(myRole()) then
+                    if not snapping and not Mono.gunBusy() then
+                        local murderer=findMurderer()
+                        if murderer and alive(murderer) then task.spawn(Mono.quickShot,murderer);return end
+                    elseif snapping then return end
+                end
                 if nm=="Shoot" and flags.silentAim and not snapping and not Mono.gunBusy()
                     and os.clock()-Mono.snapAt>=Mono.SNAP_COOLDOWN and isGunRole(myRole()) then
                     local ft=fovTarget()
@@ -4606,7 +4865,7 @@ Mono.hookOk=pcall(function()
                         return
                     end
                 end
-                local walls=(nm=="Shoot" and flags.gunWalls) or (nm=="KnifeThrown" and flags.knifeWalls)
+                local walls=(nm=="KnifeThrown" and flags.knifeWalls)
                 if nm=="KnifeThrown" and flags.instantKnife and os.clock()-instantFiredAt<0.6 then
                     return
                 end
@@ -4670,13 +4929,9 @@ if not Mono.hookOk then
                     local ft=fovTarget()
                     if ft then snapShot(ft) return end
                 end
-                if flags.gunWalls then
-                    local snap=wallAimPos()
-                    if snap then
-                        local d=snap-mine.Position
-                        d=(d.Magnitude>0.1) and d.Unit or Vector3.new(0,0,-1)
-                        pcall(function() gun.Shoot:FireServer(CFrame.new(snap-d*2,snap),CFrame.new(snap)) end)
-                    end
+                if flags.gunWalls and isGunRole(myRole()) then
+                    local murderer=findMurderer()
+                    if murderer and alive(murderer) then Mono.quickShot(murderer) end
                 end
                 return
             end
@@ -6429,11 +6684,11 @@ local Menu = MonoUI.new({
     Title = "Rift Hub", Version = "MM2", Width = 680, Height = 430,
     LogoUrl = "https://raw.githubusercontent.com/copperpoppercms-sys/Rift-Hub-MM2/main/assets/rift_logo.jpg",
     LogoCache = "RiftHub/rift-logo-92145dc6000c.jpg", LogoHeight = 30, LogoAspect = 1,
-    LogoMarkRect = {380,295,510,525},
+    LogoMarkRect = {374,298,520,520}, LogoSourceSize = 1254,
 })
 Window = Menu
 
-Menu:Tab("Modules"); Menu:Tab("Players"); Menu:Tab("Server"); Menu:Tab("Configs"); Menu:Tab("Settings"); Menu:Tab("Credits")
+Menu:Tab("Modules"); Menu:Tab("Buttons"); Menu:Tab("Players"); Menu:Tab("Server"); Menu:Tab("Configs"); Menu:Tab("Settings"); Menu:Tab("Credits")
 
 Menu:Category("Favorites", "star")
 local Combat    = Menu:Category("Combat",    "crosshair")
@@ -6446,10 +6701,11 @@ local Utility   = Menu:Category("Utility",   "wrench")
 
 Combat:Section("Murderer + Sheriff")
 do
-    local m = Combat:Module({ Name = "Auto Kill", Desc = "As murderer, knifes everyone still alive in the round. As sheriff, snap-shots the murderer", Callback = function(v) flags.autoKill=v end, Info = "As murderer, it knifes everyone still alive in the round at once, with no distance limit, so it ends the round instantly. Anyone already dead and sitting in the lobby is skipped. As sheriff or hero it snap-shots the murderer instead: it locks onto them at a fixed offset, rides along with them for a few frames so the server sees the two of you in the correct relative position, fires point blank and returns you. Riding along is what makes it land on someone running or jumping, because your position and theirs go stale together instead of separately. The server only accepts one gun shot every 3.2 seconds and silently discards anything sent sooner, so this waits that long between attempts." })
+    local m = Combat:Module({ Name = "Auto Kill", Desc = "Attacks round enemies with your current weapon", Callback = function(v) flags.autoKill=v end,
+        Info = "As murderer, attempts knife attacks on living round enemies. As sheriff or hero, uses the existing longer snap-shot routine against the murderer. The server decides cooldowns, positions and hits. For a shorter manual shot, use Shoot Murderer or Gun Through Walls." })
     m:Setting{ Type = "Slider", Title = "Snap Height", Min = 5, Max = 9, Default = 5, Callback = function(v) Mono.SNAP_HEIGHT=v end }
-    m:Setting{ Type = "Label", Wrap = true, Text = "5 is the measured sweet spot and you should not need to change it. Over a logged sample every shot that landed came from between 2.3 and 2.75 studs of the target, and every shot outside that band missed on both sides. Closer than about 2.2 puts the muzzle inside their hitbox, where a ray that starts inside a part passes straight out without registering. The muzzle sits 3.45 studs ahead of you, so height 5 places it 2.44 studs away, in the middle of the band." }
-    m:Setting{ Type = "Label", Wrap = true, Text = "Gun cooldown is fixed at 3.25s. The server only accepts one shot every 3.2s and silently throws away anything fired sooner, so there is no useful setting below that." }
+    m:Setting{ Type = "Label", Wrap = true, Text = "Snap distance controls how far the longer auto-kill visit stays from the target. The manual quick shot uses a fixed five-stud offset." }
+    m:Setting{ Type = "Label", Wrap = true, Text = "The script waits 3.25 seconds between gun requests. Live game cooldowns and hit validation may change." }
 end
 do
     local m = Combat:Module({ Name = "Aimbot", Desc = "Snaps your camera to the closest enemy in your FOV", Hold = true, Callback = function(v) flags.aimbot=v end, Info = "Snaps your camera to the closest enemy inside the FOV circle. As murderer it tracks anyone, otherwise it tracks the murderer. Bind a key and it only aims while that key is held; leave it toggled on and it aims continuously. Adjust the radius with the FOV slider, and turn on Show FOV to see it." })
@@ -6464,8 +6720,16 @@ end
 
 Combat:Section("Sheriff")
 do
-    local m = Combat:Module({ Name = "Gun Through Walls", Desc = "Your shots ignore geometry", Callback = function(v) flags.gunWalls=v end, Info = "Your shots ignore geometry. Aim near a player rather than exactly at them - through a wall it falls back to whoever is closest inside the Aimbot FOV circle, since you cannot aim precisely at someone you cannot see. Does not shoot for you." })
+    local m = Combat:Module({ Name = "Gun Through Walls", Desc = "Quick visit, shot request, and return to your position", Callback = function(v) flags.gunWalls=v end,
+        Info = "When you fire as sheriff or hero, briefly moves near the detected murderer, requests the shot and returns. Uses two simulation frames instead of the longer auto-kill visit. The server still decides cooldowns and hits; this cannot guarantee an invisible teleport or a hit." })
 end
+do
+    Combat:Module({Name="Shoot Murderer",Desc="One quick shot request, then return",Action=true,Callback=function()
+        local ok,reason=Mono.quickShot(findMurderer())
+        if not ok then notify(reason,3) end
+    end,Info="One-shot action for sheriff or hero. Can be pinned in Buttons. Requires an equipped or backpack gun and a detected murderer; respects the existing gun cooldown."})
+end
+
 do
     local m = Combat:Module({ Name = "Dropped Gun ESP", Desc = "Highlights the sheriff gun once it is on the ground", Callback = function(v) flags.gunEsp=v end, Info = "Highlights the sheriff gun once it is lying on the ground." })
 end
